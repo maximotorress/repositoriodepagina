@@ -1,0 +1,267 @@
+:root {
+    --bg: #33231a;
+    --card: #412d22;
+    --tx: #f5ece3;
+    --mut: #cdb9a8;
+    --br: #5a4233;
+    --ac: #f0b66b;
+    --acx: #2b1b12;
+    --ok: #86efac;
+    --okb: #14532d;
+    --bad: #fca5a5;
+    --badb: #7f1d1d;
+    --gr: #4f392b;
+    color-scheme: dark
+}
+
+* {
+    box-sizing: border-box
+}
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--tx);
+    font: 15px/1.45 "proxima-nova", "Proxima Nova", "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-variant-numeric: tabular-nums
+}
+
+header {
+    padding: 20px 20px 0;
+    max-width: 1000px;
+    margin: auto
+}
+
+h1 {
+    font: 700 22px/1.2 "proxima-nova", "Proxima Nova", "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    margin: 0 0 2px
+}
+
+.sub {
+    color: var(--mut);
+    margin: 0 0 14px
+}
+
+nav {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+    border-bottom: 1px solid var(--br)
+}
+
+nav button {
+    background: none;
+    border: 0;
+    border-bottom: 3px solid transparent;
+    padding: 10px 14px;
+    font: inherit;
+    color: var(--mut);
+    cursor: pointer
+}
+
+nav button.on {
+    color: var(--tx);
+    border-color: var(--ac);
+    font-weight: 600
+}
+
+main {
+    max-width: 1000px;
+    margin: auto;
+    padding: 16px 20px 60px
+}
+
+.card {
+    background: var(--card);
+    border: 1px solid var(--br);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 14px
+}
+
+.scroll {
+    overflow-x: auto
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%
+}
+
+th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--mut);
+    font-size: 13px;
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--br);
+    white-space: nowrap
+}
+
+td {
+    padding: 6px 8px;
+    border-bottom: 1px solid var(--gr);
+    vertical-align: middle
+}
+
+input,
+select {
+    font: inherit;
+    color: var(--tx);
+    background: var(--bg);
+    border: 1px solid var(--br);
+    border-radius: 6px;
+    padding: 6px 8px;
+    min-width: 0
+}
+
+input[type=number] {
+    width: 96px
+}
+
+input.w {
+    width: 100%;
+    min-width: 140px
+}
+
+button.b {
+    font: inherit;
+    background: var(--ac);
+    color: var(--acx);
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 14px;
+    cursor: pointer;
+    font-weight: 600
+}
+
+button.g {
+    font: inherit;
+    background: none;
+    color: var(--mut);
+    border: 1px solid var(--br);
+    border-radius: 6px;
+    padding: 5px 10px;
+    cursor: pointer
+}
+
+button.x {
+    background: none;
+    border: 0;
+    color: var(--bad);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1
+}
+
+:focus-visible {
+    outline: 2px solid var(--ac);
+    outline-offset: 2px
+}
+
+.row {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: end;
+    margin-bottom: 10px
+}
+
+.row label {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    font-size: 13px;
+    color: var(--mut)
+}
+
+.tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 12px;
+    font-weight: 600
+}
+
+.ok {
+    background: var(--okb);
+    color: var(--ok)
+}
+
+.bad {
+    background: var(--badb);
+    color: var(--bad)
+}
+
+.na {
+    background: var(--gr);
+    color: var(--mut)
+}
+
+.sum {
+    display: flex;
+    gap: 22px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--gr)
+}
+
+.sum div span {
+    display: block;
+    font-size: 12px;
+    color: var(--mut)
+}
+
+.sum div b {
+    font-size: 17px
+}
+
+.msg {
+    background: var(--okb);
+    color: var(--ok);
+    padding: 10px 12px;
+    border-radius: 6px;
+    margin-bottom: 12px
+}
+
+.up {
+    color: var(--bad)
+}
+
+.dn {
+    color: var(--ok)
+}
+
+.empty {
+    color: var(--mut);
+    padding: 18px;
+    text-align: center
+}
+
+.about,
+footer {
+    max-width: 1000px;
+    margin: auto;
+    padding: 0 20px 20px;
+    color: var(--mut)
+}
+
+.about h2 {
+    font: 700 18px "proxima-nova", "Proxima Nova", "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    color: var(--tx);
+    margin: 0 0 6px
+}
+
+.about a,
+footer a {
+    color: var(--mut)
+}
+
+footer a {
+    margin-right: 14px
+}
+
+.ad-slot {
+    margin: 16px 0
+}

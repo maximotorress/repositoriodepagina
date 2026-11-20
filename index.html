@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="es">
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Costeo de recetas: calculá el costo y el precio de venta de tus platos</title>
+  <meta name="description"
+    content="Herramienta gratuita para calcular el costo por porción de tus recetas, el margen y el precio de venta sugerido.">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+    crossorigin="anonymous"></script>
+  <link rel="stylesheet" href="site.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+  <!-- Proxima Nova (licencia de Adobe Fonts): pegá acá el link de tu kit, por ejemplo <link rel="stylesheet" href="https://use.typekit.net/TU_KIT.css"> -->
+</head>
+
+<body>
+  <header>
+    <h1>Costeo de recetas</h1>
+    <p class="sub">Cargá tus insumos, armá tus recetas y mirá cuánto ganás en cada plato.</p>
+    <nav id="nav"></nav>
+  </header>
+  <main id="app"></main>
+  <section class="about">
+    <h2>Calculá el costo de tus recetas y el precio de venta</h2>
+    <p>Esta herramienta gratuita te ayuda a saber cuánto cuesta cada porción, qué margen te queda y a qué precio
+      conviene vender. Cargás tus ingredientes con lo que pagaste, sumás otros costos como envase o gas, y la app
+      calcula el precio sugerido. Tus datos quedan guardados solo en tu navegador. ¿Primera vez? Leé la <a
+        href="guia-costeo-recetas.html">guía para costear una receta paso a paso</a> o mirá todas las <a
+        href="guias.html">guías</a>.</p>
+    <div class="ad-slot" aria-label="Publicidad"></div>
+  </section>
+  <footer>
+    <p>© 2026 Costeo de recetas</p>
+    <p><a href="index.html">Herramienta</a><a href="guias.html">Guías</a><a href="sobre-nosotros.html">Sobre nosotros y
+        contacto</a><a href="privacidad.html">Privacidad</a><a href="terminos.html">Términos</a><a href="#"
+        onclick="window.resetConsent&&resetConsent();return false">Preferencias de anuncios</a></p>
+  </footer>
+  <script src="site.js"></script>
+
+  <script>
+    const KEY = 'costeo-recetas-v1';
+    const U = { kg: ['g', 'kg'], l: ['ml', 'l'], un: ['un'] };
+    const F = { g: .001, kg: 1, ml: .001, l: 1, un: 1 };
+    let S, tab = 'panel', msg = '';
+
+    const uid = () => Math.random().toString(36).slice(2, 9);
+    const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    const num = v => { const n = parseFloat(String(v).replace(',', '.')); return isFinite(n) ? n : 0 };
+    const money = n => n.toLocaleString('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+    const pct = n => n == null ? '—' : n.toFixed(1).replace('.', ',') + '%';
+    const ing = id => S.ing.find(i => i.id === id);
+    const rec = id => S.rec.find(r => r.id === id);
+
+    function seed() {
+      const mk = (name, unit, price, waste = 0) => ({ id: uid(), name, unit, price, packQty: 1, packPrice: price, waste, hist: [{ d: Date.now(), p: price }] });
+      const h = mk('Harina 000', 'kg', 1000), m = mk('Manteca', 'kg', 17600), a = mk('Azúcar', 'kg', 1600),
+        e = mk('Huevos', 'un', 340), c = mk('Chocolate cobertura', 'kg', 12000), l = mk('Leche', 'l', 2080);
+      return {
+        ing: [h, m, a, e, c, l], rec: [{
+          id: uid(), name: 'Budín de chocolate', portions: 10, margin: 65, sale: 2500, extras: [{ name: 'Envase y gas', amount: 1500 }],
+          items: [{ ing: h.id, qty: 300, unit: 'g' }, { ing: m.id, qty: 150, unit: 'g' }, { ing: a.id, qty: 200, unit: 'g' },
+          { ing: e.id, qty: 3, unit: 'un' }, { ing: c.id, qty: 120, unit: 'g' }, { ing: l.id, qty: 100, unit: 'ml' }]
+        }]
+      };
+    }
+    function load() { try { S = JSON.parse(localStorage.getItem(KEY)) } catch (e) { S = null } if (!S || !S.ing) S = seed(); S.ing.forEach(g => { if (g.packQty == null) { g.packQty = 1; g.packPrice = g.price } }); S.rec.forEach(r => { if (!r.extras) r.extras = [] }) }
+    function save() { try { localStorage.setItem(KEY, JSON.stringify(S)) } catch (e) { } }
+    function commit() { save(); render() }
+
+    /* ---- cálculo ---- */
+    function itemCost(it) {
+      const g = ing(it.ing); if (!g) return 0;
+      return it.qty * F[it.unit] * g.price / (1 - Math.min(g.waste, 99) / 100);
+    }
+    function calc(r) {
+      const ci = r.items.reduce((a, i) => a + itemCost(i), 0);
+      const ce = (r.extras || []).reduce((a, e) => a + e.amount, 0);
+      const cost = ci + ce;
+      const pp = r.portions > 0 ? cost / r.portions : 0;
+      const sug = r.margin < 100 ? pp / (1 - r.margin / 100) : 0;
+      const real = r.sale > 0 ? (r.sale - pp) / r.sale * 100 : null;
+      return { ci, ce, cost, pp, sug, real };
+    }
+
+    /* ---- precios de referencia (GBA, nov 2026, aproximados) ---- */
+    const REF = [
+      { k: 'harina', name: 'Harina 000', unit: 'kg', price: 1000 },
+      { k: 'azúcar', name: 'Azúcar', unit: 'kg', price: 1600 },
+      { k: 'leche', name: 'Leche', unit: 'l', price: 2080 },
+      { k: 'huevo', name: 'Huevos', unit: 'un', price: 340 },
+      { k: 'manteca', name: 'Manteca', unit: 'kg', price: 17600 }];
+    function applyRef() {
+      let n = 0;
+      S.ing.forEach(g => {
+        const r = REF.find(x => g.name.toLowerCase().includes(x.k) && g.unit === x.unit);
+        if (r && g.price !== r.price) { g.packQty = 1; g.packPrice = r.price; g.price = r.price; g.hist.push({ d: Date.now(), p: r.price }); n++ }
+      });
+      msg = n ? `Actualicé ${n} ingredientes con precios de referencia de noviembre 2026. Revisalos y ajustalos a lo que pagás vos.` : 'Ningún ingrediente coincide con la lista de referencia o ya tienen ese precio.';
+      commit();
+    }
+    function addRef(k) { const r = REF.find(x => x.k === k); if (!r) return; S.ing.push({ id: uid(), name: r.name, unit: r.unit, price: r.price, packQty: 1, packPrice: r.price, waste: 0, hist: [{ d: Date.now(), p: r.price }] }); msg = ''; commit() }
+
+    /* ---- acciones: ingredientes ---- */
+    function addIng() { S.ing.push({ id: uid(), name: 'Nuevo ingrediente', unit: 'kg', price: 0, packQty: 1, packPrice: 0, waste: 0, hist: [{ d: Date.now(), p: 0 }] }); commit() }
+    function setIng(id, f, v) {
+      const g = ing(id);
+      if (f === 'name') g.name = v.trim() || 'Sin nombre';
+      else if (f === 'unit') { g.unit = v; S.rec.forEach(r => r.items.forEach(i => { if (i.ing === id && !U[v].includes(i.unit)) i.unit = U[v][0] })) }
+      else {
+        const n = Math.max(0, num(v));
+        if (f === 'packQty' || f === 'packPrice') { g[f] = f === 'packQty' ? (n || 1) : n; const np = g.packPrice / g.packQty; if (np !== g.price) { g.price = np; g.hist.push({ d: Date.now(), p: np }) } }
+        else g[f] = n
+      }
+      msg = ''; commit();
+    }
+    function delIng(id) {
+      if (!confirm('¿Borrar este ingrediente? También se quita de las recetas que lo usan.')) return;
+      S.ing = S.ing.filter(i => i.id !== id); S.rec.forEach(r => r.items = r.items.filter(i => i.ing !== id)); commit();
+    }
+
+    /* ---- acciones: recetas ---- */
+    function addRec() { S.rec.push({ id: uid(), name: 'Nueva receta', portions: 1, margin: 65, sale: 0, items: [], extras: [] }); tab = 'recetas'; commit() }
+    function delRec(id) { if (!confirm('¿Borrar esta receta?')) return; S.rec = S.rec.filter(r => r.id !== id); commit() }
+    function setRec(id, f, v) { const r = rec(id); if (f === 'name') r[f] = v.trim() || 'Sin nombre'; else r[f] = Math.max(0, num(v)); if (f === 'margin') r.margin = Math.min(r.margin, 95); if (f === 'portions') r.portions = Math.max(1, r.portions); commit() }
+    function addItem(id) { if (!S.ing.length) { alert('Primero cargá al menos un ingrediente.'); return } const g = S.ing[0]; rec(id).items.push({ ing: g.id, qty: 0, unit: U[g.unit][0] }); commit() }
+    function setItem(id, k, f, v) {
+      const it = rec(id).items[k];
+      if (f === 'ing') { it.ing = v; const g = ing(v); if (!U[g.unit].includes(it.unit)) it.unit = U[g.unit][0] }
+      else if (f === 'qty') it.qty = Math.max(0, num(v)); else it.unit = v;
+      commit();
+    }
+    function delItem(id, k) { rec(id).items.splice(k, 1); commit() }
+
+    function addExtra(id) { rec(id).extras.push({ name: 'Envase', amount: 0 }); commit() }
+    function setExtra(id, k, f, v) { const e = rec(id).extras[k]; if (f === 'name') e.name = v.trim() || 'Otro costo'; else e.amount = Math.max(0, num(v)); commit() }
+    function delExtra(id, k) { rec(id).extras.splice(k, 1); commit() }
+
+    /* ---- actualización masiva ---- */
+    function bulk() {
+      const p = num(document.getElementById('bp').value);
+      const ids = [...document.querySelectorAll('.bc:checked')].map(c => c.value);
+      if (!p || !ids.length) { alert('Ingresá un porcentaje y elegí al menos un ingrediente.'); return }
+      ids.forEach(id => { const g = ing(id); g.packPrice = Math.round(g.packPrice * (1 + p / 100) * 100) / 100; g.price = g.packPrice / g.packQty; g.hist.push({ d: Date.now(), p: g.price }) });
+      const low = S.rec.filter(r => { const c = calc(r); return c.real != null && c.real < r.margin }).length;
+      msg = `Listo: ${ids.length} ingredientes ${p > 0 ? 'subieron' : 'bajaron'} ${pct(Math.abs(p))}. Recetas con margen por debajo del objetivo: ${low}.`;
+      tab = 'panel'; commit();
+    }
+    function applySuggested(id) { const r = rec(id); r.sale = Math.round(calc(r).sug / 10) * 10; commit() }
+
+    /* ---- vistas ---- */
+    const opts = (list, sel) => list.map(([v, t]) => `<option value="${esc(v)}"${v === sel ? ' selected' : ''}>${esc(t)}</option>`).join('');
+    const unitOpts = sel => opts(['kg', 'l', 'un'].map(u => [u, { kg: 'kg', l: 'litros', un: 'unidades' }[u]]), sel);
+
+    function vPanel() {
+      const rows = S.rec.map(r => ({ r, c: calc(r) })).sort((a, b) => (a.c.real ?? 999) - (b.c.real ?? 999));
+      const low = rows.filter(x => x.c.real != null && x.c.real < x.r.margin).length;
+      if (!rows.length) return `<div class="card empty">Todavía no hay recetas. Creá la primera en la pestaña Recetas.</div>`;
+      return (msg ? `<div class="msg" role="status">${esc(msg)}</div>` : '') +
+        `<div class="card"><p style="margin-top:0">${low ? `<b>${low}</b> receta${low > 1 ? 's están' : ' está'} por debajo del margen objetivo.` : 'Todas tus recetas cumplen el margen objetivo.'}</p>
+  <div class="scroll"><table><tr><th>Receta</th><th>Costo por porción</th><th>Precio sugerido</th><th>Precio actual</th><th>Margen real</th><th>Objetivo</th><th>Estado</th></tr>`+
+        rows.map(({ r, c }) => {
+          const st = c.real == null ? '<span class="tag na">Sin precio</span>' : c.real < r.margin ? `<span class="tag bad">${c.real < 0 ? 'Vendés a pérdida' : 'Margen bajo'}</span>` : '<span class="tag ok">En objetivo</span>';
+          return `<tr><td>${esc(r.name)}</td><td>${money(c.pp)}</td><td>${money(c.sug)}</td><td>${r.sale ? money(r.sale) : '—'}</td><td>${pct(c.real)}</td><td>${pct(r.margin)}</td><td>${st}</td></tr>`
+        }).join('') +
+        `</table></div></div>`;
+    }
+
+    function vIng() {
+      return (msg ? `<div class="msg" role="status">${esc(msg)}</div>` : '') + `<div class="card"><div class="scroll"><table><tr><th>Nombre</th><th>Unidad</th><th>Cuánto compraste</th><th>Cuánto pagaste (ARS)</th><th>Precio por unidad</th><th>Merma %</th><th>Último cambio</th><th></th></tr>` +
+        S.ing.map(g => {
+          const h = g.hist, ch = h.length > 1 && h[h.length - 2].p > 0 ? (h[h.length - 1].p / h[h.length - 2].p - 1) * 100 : null;
+          return `<tr><td><input class="w" value="${esc(g.name)}" onchange="setIng('${g.id}','name',this.value)" aria-label="Nombre"></td>
+    <td><select onchange="setIng('${g.id}','unit',this.value)" aria-label="Unidad">${unitOpts(g.unit)}</select></td>
+    <td><input type="number" min="0" step="any" value="${g.packQty}" onchange="setIng('${g.id}','packQty',this.value)" aria-label="Cantidad comprada"></td>
+    <td><input type="number" min="0" step="any" value="${g.packPrice}" onchange="setIng('${g.id}','packPrice',this.value)" aria-label="Costo total"></td>
+    <td><b>${money(g.price)}</b> / ${{ kg: 'kg', l: 'litro', un: 'unidad' }[g.unit]}</td>
+    <td><input type="number" min="0" max="99" step="any" value="${g.waste}" onchange="setIng('${g.id}','waste',this.value)" aria-label="Merma"></td>
+    <td>${ch == null ? '—' : `<span class="${ch > 0 ? 'up' : 'dn'}">${ch > 0 ? '+' : ''}${pct(ch)}</span>`}</td>
+    <td><button class="x" title="Borrar" aria-label="Borrar ingrediente" onclick="delIng('${g.id}')">×</button></td></tr>`
+        }).join('') +
+        `</table></div><p><button class="b" onclick="addIng()">Agregar ingrediente</button> <button class="g" onclick="applyRef()">Poner precios de referencia</button> <select onchange="addRef(this.value)" aria-label="Agregar desde referencia"><option value="">Agregar desde referencia…</option>${REF.map(r => `<option value="${r.k}">${r.name} (${money(r.price)} ${{ kg: '/ kg', l: '/ litro', un: '/ unidad' }[r.unit]})</option>`).join('')}</select></p>
+  <p class="sub" style="margin:0">Poné cuánto compraste y cuánto pagaste (por ejemplo, 5 kg por $8.000) y la app calcula el precio por unidad. La merma es lo que se pierde al limpiar o cocinar.</p></div>`;
+    }
+
+    function vRec() {
+      if (!S.rec.length) return `<div class="card empty">No hay recetas. <button class="b" onclick="addRec()">Crear receta</button></div>`;
+      return S.rec.map(r => {
+        const c = calc(r);
+        return `<div class="card"><div class="row">
+      <label>Nombre<input class="w" style="min-width:200px" value="${esc(r.name)}" onchange="setRec('${r.id}','name',this.value)"></label>
+      <label>Porciones<input type="number" min="1" step="1" value="${r.portions}" onchange="setRec('${r.id}','portions',this.value)"></label>
+      <label>Margen objetivo %<input type="number" min="0" max="95" step="any" value="${r.margin}" onchange="setRec('${r.id}','margin',this.value)"></label>
+      <label>Precio de venta<input type="number" min="0" step="any" value="${r.sale}" onchange="setRec('${r.id}','sale',this.value)"></label>
+      <button class="g" onclick="delRec('${r.id}')">Borrar receta</button></div>
+    <div class="scroll"><table><tr><th>Ingrediente</th><th>Cantidad</th><th>Unidad</th><th>Costo</th><th></th></tr>`+
+          r.items.map((it, k) => {
+            const g = ing(it.ing);
+            return `<tr><td><select onchange="setItem('${r.id}',${k},'ing',this.value)">${opts(S.ing.map(x => [x.id, x.name]), it.ing)}</select></td>
+      <td><input type="number" min="0" step="any" value="${it.qty}" onchange="setItem('${r.id}',${k},'qty',this.value)"></td>
+      <td><select onchange="setItem('${r.id}',${k},'unit',this.value)">${opts(U[g ? g.unit : 'un'].map(u => [u, u === 'un' ? 'unidades' : u]), it.unit)}</select></td>
+      <td>${money(itemCost(it))}</td>
+      <td><button class="x" aria-label="Quitar ingrediente" onclick="delItem('${r.id}',${k})">×</button></td></tr>`
+          }).join('') +
+          `</table></div><p><button class="g" onclick="addItem('${r.id}')">Agregar ingrediente a la receta</button></p>
+    <p style="margin:12px 0 4px"><b>Otros costos</b> <span class="sub" style="margin:0">(envase, gas, mano de obra… por tanda completa)</span></p>
+    ${r.extras.length ? `<div class="scroll"><table><tr><th>Concepto</th><th>Costo (ARS)</th><th></th></tr>${r.extras.map((e, k) => `<tr><td><input class="w" value="${esc(e.name)}" onchange="setExtra('${r.id}',${k},'name',this.value)" aria-label="Concepto"></td><td><input type="number" min="0" step="any" value="${e.amount}" onchange="setExtra('${r.id}',${k},'amount',this.value)" aria-label="Costo"></td><td><button class="x" aria-label="Quitar costo" onclick="delExtra('${r.id}',${k})">×</button></td></tr>`).join('')}</table></div>` : ''}
+    <p><button class="g" onclick="addExtra('${r.id}')">Agregar otro costo</button></p>
+    <div class="sum"><div><span>Ingredientes</span><b>${money(c.ci)}</b></div><div><span>Otros costos</span><b>${money(c.ce)}</b></div>
+    <div><span>Costo total</span><b>${money(c.cost)}</b></div><div><span>Costo por porción</span><b>${money(c.pp)}</b></div>
+    <div><span>Precio sugerido (margen ${pct(r.margin)})</span><b style="font-size:22px;color:var(--ac)">${money(c.sug)}</b></div>
+    <div><span>Margen real a tu precio</span><b>${pct(c.real)}</b></div>
+    <div><button class="g" onclick="applySuggested('${r.id}')">Usar precio sugerido</button></div></div></div>`
+      }).join('') +
+        `<button class="b" onclick="addRec()">Nueva receta</button>`;
+    }
+
+    function vBulk() {
+      return `<div class="card"><p style="margin-top:0">¿Subió todo? Aplicá un porcentaje a varios insumos de una vez y mirá qué recetas quedaron con margen bajo.</p>
+  <div class="row"><label>Variación %<input id="bp" type="number" step="any" placeholder="8" style="width:110px"></label>
+  <button class="b" onclick="bulk()">Aplicar</button>
+  <button class="g" onclick="document.querySelectorAll('.bc').forEach(c=>c.checked=true)">Marcar todos</button>
+  <button class="g" onclick="document.querySelectorAll('.bc').forEach(c=>c.checked=false)">Desmarcar</button></div>
+  <div class="scroll"><table><tr><th></th><th>Ingrediente</th><th>Precio actual</th></tr>`+
+        S.ing.map(g => `<tr><td><input class="bc" type="checkbox" value="${g.id}" checked aria-label="${esc(g.name)}"></td><td>${esc(g.name)}</td><td>${money(g.price)} ${{ kg: '/ kg', l: '/ litro', un: '/ unidad' }[g.unit]}</td></tr>`).join('') +
+        `</table></div></div>`;
+    }
+
+    const TABS = [['panel', 'Panel de precios', vPanel], ['recetas', 'Recetas', vRec], ['ing', 'Ingredientes', vIng], ['bulk', 'Actualización masiva', vBulk]];
+    function go(t) { tab = t; if (t !== 'panel') msg = ''; render() }
+    function render() {
+      document.getElementById('nav').innerHTML = TABS.map(([k, t]) => `<button class="${k === tab ? 'on' : ''}" onclick="go('${k}')">${t}</button>`).join('');
+      document.getElementById('app').innerHTML = TABS.find(t => t[0] === tab)[2]();
+    }
+    load(); render();
+  </script>
+</body>
+
+</html>
